@@ -37,6 +37,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/analysis"
 	bparams "github.com/ethereum/go-ethereum/beacon/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
@@ -1078,6 +1079,13 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Usage:    "InfluxDB organization name (v2 only)",
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
+	}
+
+	// Analysis settings
+	AnalysisEnabledFlag = &cli.BoolFlag{
+		Name:     "analysis",
+		Usage:    "Enable analysis",
+		Category: flags.AnalysisCategory,
 	}
 )
 
@@ -2133,6 +2141,15 @@ func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, filterSyst
 	if err != nil {
 		Fatalf("Failed to register the GraphQL service: %v", err)
 	}
+}
+
+// RegisterAnalysisService analysis blockchain data
+func RegisterAnalysisService(stack *node.Node, cfg *node.Config, blockChain *core.BlockChain) {
+	analysist := analysis.New(&cfg.AnalysisConfig, blockChain)
+	if analysist == nil {
+		Fatalf("Failed to register the Analysis service")
+	}
+	stack.RegisterAnalysis(analysist)
 }
 
 // RegisterFilterAPI adds the eth log filtering RPC API to the node.

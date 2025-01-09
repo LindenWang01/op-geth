@@ -237,6 +237,12 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 			"version":   cfg.Node.Version,
 			"protocols": strings.Join(protos, ","),
 		})
+
+		log.Info("Node analysis", "config", cfg.Node.AnalysisConfig)
+		// Add the analysis service
+		if cfg.Node.AnalysisConfig.KafkaHost != "" {
+			utils.RegisterAnalysisService(stack, &cfg.Node, eth.BlockChain())
+		}
 	}
 
 	// Configure log filter RPC API.

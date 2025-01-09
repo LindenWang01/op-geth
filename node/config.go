@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"strings"
 
+	analysisConf "github.com/ethereum/go-ethereum/analysis/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -211,6 +212,9 @@ type Config struct {
 	EnablePersonal bool `toml:"-"`
 
 	DBEngine string `toml:",omitempty"`
+
+	// Analysis config
+	AnalysisConfig analysisConf.AnalysisConfig
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into

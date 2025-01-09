@@ -1,0 +1,5 @@
+[Node.AnalysisConfig]
+KafkaHost = "127.0.0.1:9092"
+LevelDBPath = "./kafka_record_db"
+HeaderNumber = 0
+ReceiptNumber = 0

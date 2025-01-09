@@ -30,6 +30,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/analysis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -67,6 +68,7 @@ type Node struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	databases map[*closeTrackingDB]struct{} // All open databases
+	analysis  *analysis.Analysis            // Analysis blockchain data
 }
 
 const (
@@ -199,6 +201,10 @@ func (n *Node) Start() error {
 		n.stopServices(started)
 		n.doClose(nil)
 	}
+
+	// Start analysis service.
+	n.analysis.Start()
+
 	return err
 }
 
@@ -295,6 +301,9 @@ func (n *Node) stopServices(running []Lifecycle) error {
 
 	// Stop p2p networking.
 	n.server.Stop()
+
+	// Stop analysis service.
+	n.analysis.Stop()
 
 	if len(failure.Services) > 0 {
 		return failure
@@ -589,6 +598,13 @@ func (n *Node) RegisterAPIs(apis []rpc.API) {
 		panic("can't register APIs on running/stopped node")
 	}
 	n.rpcAPIs = append(n.rpcAPIs, apis...)
+}
+
+// RegisterAnalysis registers the analysis blockchain service
+func (n *Node) RegisterAnalysis(analysis *analysis.Analysis) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	n.analysis = analysis
 }
 
 // getAPIs return two sets of APIs, both the ones that do not require
