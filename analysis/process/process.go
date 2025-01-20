@@ -10,6 +10,7 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/ethereum/go-ethereum/analysis/kafka"
 	"github.com/ethereum/go-ethereum/analysis/model"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -21,6 +22,10 @@ const (
 	topicLog     = "log"
 	txNumber     = 10
 	logNumber    = 40
+)
+
+var (
+	systemAddress = common.HexToAddress("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001")
 )
 
 type Process struct {
@@ -137,33 +142,61 @@ func (p *Process) analysisTransaction(transactions types.Transactions, typeName 
 	}
 }
 
-// analysisReceipt
-func (p *Process) analysisReceipt(receipts types.Receipts, typeName string, time uint64) {
-	topicp := p.getTopicName(int64(time), typeName)
+// analysisTxReceipt
+func (p *Process) analysisTxReceipt(receipts types.Receipts, block *types.Block, typeName string) {
+	topicp := p.getTopicName(int64(block.Time()), typeName)
 	topic := "base_" + typeName
 	var messages = make([]*sarama.ProducerMessage, 0)
+
+	// Create a mapping from transaction hash to transaction for quick lookup
+	txMap := make(map[common.Hash]*types.Transaction)
+	for _, tx := range block.Transactions() {
+		txMap[tx.Hash()] = tx
+	}
+
 	for i, receipt := range receipts {
-		p.analysisLog(receipt.Logs, topicLog, time)
-		var postState = ""
-		if len(receipt.PostState) > 0 {
-			postState = string(receipt.PostState)
+		// p.analysisLog(receipt.Logs, topicLog, time)
+
+		var from, to common.Address
+		// Find the corresponding transaction using receipt's TxHash
+		tx := txMap[receipt.TxHash]
+		if tx != nil {
+			signer := types.LatestSignerForChainID(tx.ChainId())
+			from, _ = signer.Sender(tx)
+
+			if tx.To() != nil {
+				to = *tx.To()
+			}
+
+			// Ignore system address to L1BlockAddr(Set L1Block Values Ecotone)
+			if from.Cmp(systemAddress) == 0 && to.Cmp(types.L1BlockAddr) == 0 {
+				continue
+			}
 		}
-		receiptMsg := model.Receipt{
-			Type:              receipt.Type,
-			PostState:         postState,
-			Status:            receipt.Status,
-			CumulativeGasUsed: receipt.CumulativeGasUsed,
-			Bloom:             hexutil.Encode(receipt.Bloom.Bytes()),
-			Logs:              "",
-			TxHash:            receipt.TxHash.String(),
-			ContractAddress:   receipt.ContractAddress.String(),
-			Time:              time,
-			GasUsed:           receipt.GasUsed,
-			BlockHash:         receipt.BlockHash.String(),
-			BlockNumber:       receipt.BlockNumber.Uint64(),
-			TransactionIndex:  receipt.TransactionIndex,
-			LogSize:           len(receipt.Logs),
+
+		receiptMsg := model.TxReceipt{
+			BlockHash:           receipt.BlockHash,
+			BlockNumber:         receipt.BlockNumber,
+			ContractAddress:     receipt.ContractAddress,
+			CumulativeGasUsed:   receipt.CumulativeGasUsed,
+			EffectiveGasPrice:   receipt.EffectiveGasPrice,
+			From:                from,
+			GasUsed:             receipt.GasUsed,
+			Logs:                receipt.Logs,
+			L1BaseFeeScalar:     receipt.L1BaseFeeScalar,
+			L1BlobBaseFee:       receipt.L1BlobBaseFee,
+			L1BlobBaseFeeScalar: receipt.L1BlobBaseFeeScalar,
+			L1Fee:               receipt.L1Fee,
+			L1GasPrice:          receipt.L1GasPrice,
+			L1GasUsed:           receipt.L1GasUsed,
+			LogsBloom:           receipt.Bloom,
+			Status:              receipt.Status,
+			To:                  to,
+			TransactionHash:     receipt.TxHash,
+			TransactionIndex:    receipt.TransactionIndex,
+			Type:                receipt.Type,
 		}
+
 		receiptMsg.Partition = p.partition(topicp)
 		msg, _ := json.Marshal(receiptMsg)
 		m := sarama.ProducerMessage{

@@ -35,12 +35,12 @@ type BlockDataAnalysis struct {
 }
 
 func NewBlockDataAnalysis(config *config.AnalysisConfig, blockChain *core.BlockChain) *BlockDataAnalysis {
-	client, err := kafka.NewKafkaScheduler([]string{config.KafkaHost})
+	client, err := kafka.NewKafkaScheduler(config.KafkaHosts)
 	if err != nil {
 		log.Crit("NewKafkaScheduler", "error", err)
 	}
 
-	client.KafkaHost = config.KafkaHost
+	client.KafkaHosts = config.KafkaHosts
 	ctx, cancel := context.WithCancel(context.Background())
 	ld, _ := initLevelDb(config.LevelDBPath, config.HeaderNumber, config.ReceiptNumber)
 
@@ -95,8 +95,8 @@ func (b *BlockDataAnalysis) Start() {
 	log.Info("Analysis service refresh handler started.")
 	go b.kafkaScheduler.Start(b.ctx)
 	log.Info("Analysis service kafka scheduler started.")
-	go b.AnalysisHeaderAndTx(b.ctx)
-	log.Info("Analysis service header and tx started.")
+	// go b.AnalysisHeaderAndTx(b.ctx)
+	// log.Info("Analysis service header and tx started.")
 	go b.AnalysisReceiptAndLog(b.ctx)
 	log.Info("Analysis service receipt and log started.")
 }
@@ -150,7 +150,7 @@ func (b *BlockDataAnalysis) AnalysisReceiptAndLog(ctx context.Context) {
 				if block != nil {
 					receipts := b.blockChain.GetReceiptsByHash(block.Hash())
 					if receipts.Len() > 0 {
-						b.process.analysisReceipt(receipts, topicReceipt, block.Time())
+						b.process.analysisTxReceipt(receipts, block, topicReceipt)
 					}
 					b.receiptBlockInfo.BlockNumber = number
 					r, _ := json.Marshal(b.receiptBlockInfo)

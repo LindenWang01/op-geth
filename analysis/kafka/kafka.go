@@ -10,14 +10,14 @@ import (
 )
 
 type KafkaScheduler struct {
-	KafkaHost    string
+	KafkaHosts   []string
 	syncProducer sarama.SyncProducer
 	msgProducer  sarama.ProducerMessage
 	KafkaMessage chan *model.KafkaMessage
 }
 
 // NewKafkaScheduler init kafka scheduler
-func NewKafkaScheduler(addr []string) (*KafkaScheduler, error) {
+func NewKafkaScheduler(addrs []string) (*KafkaScheduler, error) {
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.NoResponse
 	config.Producer.Partitioner = sarama.NewRandomPartitioner
@@ -29,7 +29,7 @@ func NewKafkaScheduler(addr []string) (*KafkaScheduler, error) {
 	config.Producer.Retry.Backoff = time.Second * 2
 
 	// create sync producer
-	syncProducer, err := sarama.NewSyncProducer(addr, config)
+	syncProducer, err := sarama.NewSyncProducer(addrs, config)
 	if err != nil {
 		log.Error("Kafka syncProducer closed, error:", err)
 		return nil, err

@@ -240,7 +240,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 		log.Info("Node analysis", "config", cfg.Node.AnalysisConfig)
 		// Add the analysis service
-		if cfg.Node.AnalysisConfig.KafkaHost != "" {
+		if len(cfg.Node.AnalysisConfig.KafkaHosts) != 0 {
 			utils.RegisterAnalysisService(stack, &cfg.Node, eth.BlockChain())
 		}
 	}

@@ -203,7 +203,9 @@ func (n *Node) Start() error {
 	}
 
 	// Start analysis service.
-	n.analysis.Start()
+	if n.analysis != nil {
+		n.analysis.Start()
+	}
 
 	return err
 }
@@ -303,7 +305,9 @@ func (n *Node) stopServices(running []Lifecycle) error {
 	n.server.Stop()
 
 	// Stop analysis service.
-	n.analysis.Stop()
+	if n.analysis != nil {
+		n.analysis.Stop()
+	}
 
 	if len(failure.Services) > 0 {
 		return failure

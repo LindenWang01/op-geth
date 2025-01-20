@@ -1,7 +1,11 @@
 package model
 
 import (
+	"math/big"
+
 	"github.com/IBM/sarama"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type AnalysisBlockInfo struct {
@@ -52,27 +56,28 @@ type Transaction struct {
 	Partition       string `json:"partition"`
 }
 
-type Receipt struct {
-	// Consensus fields: These fields are defined by the Yellow Paper
-	Type              uint8  `json:"type"`
-	PostState         string `json:"postState"`
-	Status            uint64 `json:"status"`
-	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
-	Bloom             string `json:"logsBloom"`
-	Logs              string `json:"logs"`
-	// Implementation fields: These fields are added by geth when processing a transaction.
-	// They are stored in the chain database.
-	TxHash          string `json:"txHash"`
-	ContractAddress string `json:"contractAddress"`
-	GasUsed         uint64 `json:"gasUsed"`
-	Time            uint64 `json:"timestamp"`
-	// Inclusion information: These fields provide information about the inclusion of the
-	// transaction corresponding to this receipt.
-	BlockHash        string `json:"blockHash"`
-	BlockNumber      uint64 `json:"number"`
-	TransactionIndex uint   `json:"txIndex"`
-	LogSize          int    `json:"logSize"`
-	Partition        string `json:"partition"`
+type TxReceipt struct {
+	BlockHash           common.Hash    `json:"blockHash"`
+	BlockNumber         *big.Int       `json:"blockNumber"`
+	ContractAddress     common.Address `json:"contractAddress"`
+	CumulativeGasUsed   uint64         `json:"cumulativeGasUsed"`
+	EffectiveGasPrice   *big.Int       `json:"effectiveGasPrice"`
+	From                common.Address `json:"from"`
+	GasUsed             uint64         `json:"gasUsed"`
+	L1BaseFeeScalar     *uint64        `json:"l1BaseFeeScalar"`
+	L1BlobBaseFee       *big.Int       `json:"l1BlobBaseFee"`
+	L1BlobBaseFeeScalar *uint64        `json:"l1BlobBaseFeeScalar"`
+	L1Fee               *big.Int       `json:"l1Fee"`
+	L1GasPrice          *big.Int       `json:"l1GasPrice"`
+	L1GasUsed           *big.Int       `json:"l1GasUsed"`
+	LogsBloom           types.Bloom    `json:"logsBloom"`
+	Logs                []*types.Log   `json:"logs"`
+	Status              uint64         `json:"status"`
+	To                  common.Address `json:"to"`
+	TransactionHash     common.Hash    `json:"transactionHash"`
+	TransactionIndex    uint           `json:"transactionIndex"`
+	Type                uint8          `json:"type"`
+	Partition           string         `json:"partition"`
 }
 
 type Log struct {
