@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/analysis/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
@@ -62,6 +63,7 @@ type Backend interface {
 	CurrentHeader() *types.Header
 	CurrentBlock() *types.Header
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
+	ParsedBlockByNumber(ctx context.Context, number rpc.BlockNumber) (*model.Block, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)

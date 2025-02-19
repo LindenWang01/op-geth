@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/analysis/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -148,6 +149,10 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		return b.eth.blockchain.GetBlock(header.Hash(), header.Number.Uint64()), nil
 	}
 	return b.eth.blockchain.GetBlockByNumber(uint64(number)), nil
+}
+
+func (b *EthAPIBackend) ParsedBlockByNumber(ctx context.Context, number rpc.BlockNumber) (*model.Block, error) {
+	return b.eth.AnalysisProcesser.AnalysisBlock(uint64(number)), nil
 }
 
 func (b *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {

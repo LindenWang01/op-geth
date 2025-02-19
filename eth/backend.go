@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/analysis/process"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -108,6 +109,8 @@ type Ethereum struct {
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
 
 	nodeCloser func() error
+
+	AnalysisProcesser *process.BlockDataAnalysis
 }
 
 // New creates a new Ethereum object (including the initialisation of the common Ethereum object),
@@ -340,6 +343,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	stack.RegisterAPIs(eth.APIs())
 	stack.RegisterProtocols(eth.Protocols())
 	stack.RegisterLifecycle(eth)
+
+	// Block data analysis module interface functionality
+	eth.AnalysisProcesser = process.NewApiBlockDataAnalysis(eth.blockchain)
 
 	// Successful startup; push a marker and check previous unclean shutdowns.
 	eth.shutdownTracker.MarkStartup()

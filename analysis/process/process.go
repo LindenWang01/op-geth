@@ -1,8 +1,6 @@
 package process
 
 import (
-	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -16,12 +14,13 @@ import (
 )
 
 const (
-	topicHeader  = "header"
-	topicTx      = "transaction"
-	topicReceipt = "receipt"
-	topicLog     = "log"
-	txNumber     = 10
-	logNumber    = 40
+	topicHeader        = "header"
+	topicTx            = "transaction"
+	topicReceipt       = "receipt"
+	topicLog           = "log"
+	txNumber           = 10
+	logNumber          = 40
+	timeLayoutYYYYMMDD = "20060102"
 )
 
 var (
@@ -37,49 +36,39 @@ type Process struct {
 }
 
 // analysisHeader
-func (p *Process) analysisHeader(block *types.Block, typeName string) {
-	var headerMsg = model.Header{
-		ParentHash:  block.Header().ParentHash.String(),
-		UncleHash:   block.Header().UncleHash.String(),
-		Coinbase:    block.Header().Coinbase.String(),
-		Root:        block.Header().Root.String(),
-		TxHash:      block.Header().TxHash.String(),
-		ReceiptHash: block.Header().ReceiptHash.String(),
-		Bloom:       hexutil.Encode(block.Header().Bloom.Bytes()),
-		Difficulty:  block.Header().Difficulty.String(),
-		BlockNumber: block.Header().Number.Uint64(),
-		GasLimit:    block.Header().GasLimit,
-		GasUsed:     block.Header().GasUsed,
-		Time:        block.Header().Time,
-		Extra:       hexutil.Encode(block.Header().Extra),
-		MixDigest:   block.Header().MixDigest.String(),
-		Nonce:       strconv.FormatUint(block.Header().Nonce.Uint64(), 10),
-		ReceivedAt:  block.ReceivedAt.String(),
-		Hash:        block.Header().Hash().String(),
-		TxSize:      block.Transactions().Len(),
+func (p *Process) analysisHeader(block *types.Block) *model.Header {
+	if block.Header() != nil {
+		var headerMsg = model.Header{
+			ParentHash:  block.Header().ParentHash.String(),
+			UncleHash:   block.Header().UncleHash.String(),
+			Coinbase:    block.Header().Coinbase.String(),
+			Root:        block.Header().Root.String(),
+			TxHash:      block.Header().TxHash.String(),
+			ReceiptHash: block.Header().ReceiptHash.String(),
+			Bloom:       hexutil.Encode(block.Header().Bloom.Bytes()),
+			Difficulty:  block.Header().Difficulty.String(),
+			BlockNumber: block.Header().Number.Uint64(),
+			GasLimit:    block.Header().GasLimit,
+			GasUsed:     block.Header().GasUsed,
+			Time:        block.Header().Time,
+			Extra:       hexutil.Encode(block.Header().Extra),
+			MixDigest:   block.Header().MixDigest.String(),
+			Nonce:       strconv.FormatUint(block.Header().Nonce.Uint64(), 10),
+			ReceivedAt:  block.ReceivedAt.String(),
+			Hash:        block.Header().Hash().String(),
+			TxSize:      block.Transactions().Len(),
+		}
+		if block.Header().BaseFee != nil {
+			headerMsg.BaseFee = block.Header().BaseFee.String()
+		}
+		return &headerMsg
 	}
-	if block.Header().BaseFee != nil {
-		headerMsg.BaseFee = block.Header().BaseFee.String()
-	}
-	topic := "base_" + typeName
-	topicp := p.getTopicName(int64(block.Header().Time), typeName)
-	headerMsg.Partition = p.partition(topicp)
-	msg, _ := json.Marshal(headerMsg)
-	var messages = make([]*sarama.ProducerMessage, 0)
-	m := sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.StringEncoder(msg),
-	}
-	messages = append(messages, &m)
-	p.sendKafkaMsgChain(messages)
+	return nil
 }
 
 // analysisTransaction
-func (p *Process) analysisTransaction(transactions types.Transactions, typeName string, time, blockNumber uint64) {
-	var txIndex = 0
-	topicp := p.getTopicName(int64(time), typeName)
-	topic := "base_" + typeName
-	var messages = make([]*sarama.ProducerMessage, 0)
+func (p *Process) analysisTransaction(transactions types.Transactions, time, blockNumber uint64) []*model.Transaction {
+	var parseTransactions = make([]*model.Transaction, 0)
 	for i, tx := range transactions {
 		singer := types.LatestSignerForChainID(tx.ChainId())
 		from, err := singer.Sender(tx)
@@ -92,6 +81,12 @@ func (p *Process) analysisTransaction(transactions types.Transactions, typeName 
 		if tx.To() != nil {
 			to = tx.To().String()
 		}
+
+		// Ignore system address to L1BlockAddr(Set L1Block Values Ecotone)
+		if from.Cmp(systemAddress) == 0 && to == types.L1BlockAddr.String() {
+			continue
+		}
+
 		if tx.Value() != nil {
 			value = tx.Value().String()
 		}
@@ -122,41 +117,23 @@ func (p *Process) analysisTransaction(transactions types.Transactions, typeName 
 			InputData:       hexutil.Encode(tx.Data()),
 			Cost:            cost,
 			Type:            strconv.Itoa(int(tx.Type())),
-			TxIndex:         txIndex,
+			TxIndex:         i,
 		}
-		transactionMsg.Partition = p.partition(topicp)
-		msg, _ := json.Marshal(transactionMsg)
-		m := sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.StringEncoder(msg),
-		}
-		messages = append(messages, &m)
-		if i+1%txNumber == 0 {
-			p.sendKafkaMsgChain(messages)
-			messages = make([]*sarama.ProducerMessage, 0)
-		}
-		txIndex++
+		parseTransactions = append(parseTransactions, &transactionMsg)
 	}
-	if len(messages) > 0 {
-		p.sendKafkaMsgChain(messages)
-	}
+	return parseTransactions
 }
 
 // analysisTxReceipt
-func (p *Process) analysisTxReceipt(receipts types.Receipts, block *types.Block, typeName string) {
-	topicp := p.getTopicName(int64(block.Time()), typeName)
-	topic := "base_" + typeName
-	var messages = make([]*sarama.ProducerMessage, 0)
+func (p *Process) analysisTxReceipt(receipts types.Receipts, block *types.Block) []*model.TxReceipt {
+	var parseReceipts = make([]*model.TxReceipt, 0)
 
-	// Create a mapping from transaction hash to transaction for quick lookup
 	txMap := make(map[common.Hash]*types.Transaction)
 	for _, tx := range block.Transactions() {
 		txMap[tx.Hash()] = tx
 	}
 
-	for i, receipt := range receipts {
-		// p.analysisLog(receipt.Logs, topicLog, time)
-
+	for _, receipt := range receipts {
 		var from, to common.Address
 		// Find the corresponding transaction using receipt's TxHash
 		tx := txMap[receipt.TxHash]
@@ -172,6 +149,11 @@ func (p *Process) analysisTxReceipt(receipts types.Receipts, block *types.Block,
 			if from.Cmp(systemAddress) == 0 && to.Cmp(types.L1BlockAddr) == 0 {
 				continue
 			}
+		}
+		// logs := p.analysisLog(receipt.Logs)
+		var postState = ""
+		if len(receipt.PostState) > 0 {
+			postState = string(receipt.PostState)
 		}
 
 		receiptMsg := model.TxReceipt{
@@ -195,32 +177,18 @@ func (p *Process) analysisTxReceipt(receipts types.Receipts, block *types.Block,
 			TransactionHash:     receipt.TxHash,
 			TransactionIndex:    receipt.TransactionIndex,
 			Type:                receipt.Type,
+			PostState:           postState,
 		}
 
-		receiptMsg.Partition = p.partition(topicp)
-		msg, _ := json.Marshal(receiptMsg)
-		m := sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.StringEncoder(msg),
-		}
-		messages = append(messages, &m)
-		if i+1%txNumber == 0 {
-			p.sendKafkaMsgChain(messages)
-			messages = make([]*sarama.ProducerMessage, 0)
-		}
+		parseReceipts = append(parseReceipts, &receiptMsg)
 	}
-	if len(messages) > 0 {
-		p.sendKafkaMsgChain(messages)
-	}
+	return parseReceipts
 }
 
 // analysisLog
-func (p *Process) analysisLog(logs []*types.Log, typeName string, time uint64) {
-	topicp := p.getTopicName(int64(time), typeName)
-	topic := "base_" + typeName
-	partition := p.partition(topicp)
-	var messages = make([]*sarama.ProducerMessage, 0)
-	for i, log := range logs {
+func (p *Process) analysisLog(logs []*types.Log) []*model.Log {
+	var parseLogs = make([]*model.Log, 0)
+	for _, log := range logs {
 		var logTopics = make([]string, 0)
 		for _, pic := range log.Topics {
 			logTopics = append(logTopics, pic.String())
@@ -229,10 +197,6 @@ func (p *Process) analysisLog(logs []*types.Log, typeName string, time uint64) {
 		if log.Removed {
 			remover = "1"
 		}
-		number := strconv.FormatUint(log.BlockNumber, 10)
-		txIndex := strconv.FormatInt(int64(log.TxIndex), 10)
-		logIndex := strconv.FormatInt(int64(log.Index), 10)
-		LogId := number + "/" + txIndex + "/" + logIndex
 		lodData := hexutil.Encode(log.Data)
 		lodData = strings.ReplaceAll(lodData, "0x", "")
 		var le = len(lodData) / 64
@@ -242,80 +206,30 @@ func (p *Process) analysisLog(logs []*types.Log, typeName string, time uint64) {
 			var end = (i + 1) * 64
 			logDatas = append(logDatas, lodData[start:end])
 		}
-		bscLogData := model.Log{
-			LogAddress:  log.Address.String(),
-			Topics:      logTopics,
-			TxHash:      log.TxHash.String(),
-			Logs:        logDatas,
-			BlockNumber: log.BlockNumber,
-			TxIndex:     int(log.TxIndex),
-			BlockHash:   log.BlockHash.String(),
-			LogIndex:    int(log.Index),
-			Time:        time,
-			Removed:     remover,
-			LogId:       LogId,
-			Partition:   partition,
+		logData := model.Log{
+			LogAddress: log.Address.String(),
+			Topics:     logTopics,
+			Logs:       logDatas,
+			LogIndex:   int(log.Index),
+			Removed:    remover,
 		}
-		msg, _ := json.Marshal(bscLogData)
-		m := sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.StringEncoder(msg),
-		}
-		messages = append(messages, &m)
-		if i+1%logNumber == 0 {
-			p.sendKafkaMsgChain(messages)
-			messages = make([]*sarama.ProducerMessage, 0)
-		}
+		parseLogs = append(parseLogs, &logData)
 	}
-	if len(messages) > 0 {
-		p.sendKafkaMsgChain(messages)
-	}
+	return parseLogs
 }
 
-// getTopicName
-func (p *Process) getTopicName(blockTime int64, typeName string) string {
-	topic := "base_" + typeName + "-"
-	if typeName == topicHeader || typeName == topicTx {
-		if blockTime > p.headerLastTime {
-			endTime, today := p.GetLastTime(blockTime)
-			p.headerLastTime = endTime
-			p.headerDate = today
-		}
-		topic += p.headerDate
-	} else {
-		if blockTime > p.receiptLastTime {
-			endTime, today := p.GetLastTime(blockTime)
-			p.receiptLastTime = endTime
-			p.receiptData = today
-		}
-		topic += p.receiptData
+// sendMsgChain
+func (p *Process) sendMsgChain(m *sarama.ProducerMessage) {
+	p.kafkaScheduler.KafkaMessage <- &model.Message{
+		Message: m,
 	}
-	return topic
-}
-
-// sendKafkaMsgChain
-func (p *Process) sendKafkaMsgChain(m []*sarama.ProducerMessage) {
-	p.kafkaScheduler.KafkaMessage <- &model.KafkaMessage{
-		Messages: m,
-	}
-}
-
-// partition
-func (p *Process) partition(topic string) string {
-	var part = ""
-	if len(topic) > 0 && strings.Contains(topic, "-") {
-		topics := strings.Split(topic, "-")[1]
-		part = fmt.Sprintf("%s/%s/%s", topics[0:4], topics[4:6], topics[6:8])
-	}
-	return part
 }
 
 // GetLastTime  get the date last time
 func (p *Process) GetLastTime(blockTime int64) (int64, string) {
-	timeLayout := "20060102"
-	t2 := time.Unix(blockTime, 0).Format(timeLayout)
+	t2 := time.Unix(blockTime, 0).Format(timeLayoutYYYYMMDD)
 	loc, _ := time.LoadLocation("Local")
-	theTime, _ := time.ParseInLocation(timeLayout, t2, loc)
+	theTime, _ := time.ParseInLocation(timeLayoutYYYYMMDD, t2, loc)
 	// Last second of a day
 	endTime := time.Date(theTime.Year(), theTime.Month(), theTime.Day(), 23, 59, 59, 0, theTime.Location()).Unix()
 	return endTime, t2

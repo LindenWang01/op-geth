@@ -3,6 +3,7 @@ package config
 type AnalysisConfig struct {
 	KafkaHosts    []string
 	LevelDBPath   string
-	HeaderNumber  uint64 // Analysis begin height
+	BlockNumber   uint64 // Block begin height
+	HeaderNumber  uint64 // Hearder begin height
 	ReceiptNumber uint64 // Receipt begin height
 }

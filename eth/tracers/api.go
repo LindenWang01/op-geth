@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/analysis/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -79,6 +80,7 @@ type Backend interface {
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
+	ParsedBlockByNumber(ctx context.Context, number rpc.BlockNumber) (*model.Block, error)
 	GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error)
 	RPCGasCap() uint64
 	ChainConfig() *params.ChainConfig
@@ -127,6 +129,19 @@ func (api *API) blockByHash(ctx context.Context, hash common.Hash) (*types.Block
 	}
 	if block == nil {
 		return nil, fmt.Errorf("block %s not found", hash.Hex())
+	}
+	return block, nil
+}
+
+// parsedBlockByNumber is the wrapper of the chain access function offered by the backend.
+// It will return an error if the block is not found.
+func (api *API) parsedBlockByNumber(ctx context.Context, number rpc.BlockNumber) (*model.Block, error) {
+	block, err := api.backend.ParsedBlockByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, fmt.Errorf("block %s not found", number)
 	}
 	return block, nil
 }

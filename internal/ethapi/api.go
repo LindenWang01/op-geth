@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
+	"github.com/ethereum/go-ethereum/analysis/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -881,6 +882,15 @@ func (api *BlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.Block
 			}
 		}
 		return response, err
+	}
+	return nil, err
+}
+
+// GetParsedBlockByNumber returns the requested canonical block.
+func (api *BlockChainAPI) GetParsedBlockByNumber(ctx context.Context, number rpc.BlockNumber) (*model.Block, error) {
+	block, err := api.b.ParsedBlockByNumber(ctx, number)
+	if block != nil && err == nil {
+		return block, err
 	}
 	return nil, err
 }

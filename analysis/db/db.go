@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	blockKey    = []byte("block")
 	headerKey   = []byte("header")
 	receiptKey  = []byte("receipt")
 	ErrEmptyKey = errors.New("key could not be empty")
@@ -53,12 +54,20 @@ func (l *Level) Get(key []byte) ([]byte, error) {
 	return l.ldb.Get(key, nil)
 }
 
+func (l *Level) GetBlock() ([]byte, error) {
+	return l.Get(blockKey)
+}
+
 func (l *Level) GetHeader() ([]byte, error) {
 	return l.Get(headerKey)
 }
 
 func (l *Level) GetReceipt() ([]byte, error) {
 	return l.Get(receiptKey)
+}
+
+func (l *Level) PutBlock(value []byte) error {
+	return l.ldb.Put(blockKey, value, nil)
 }
 
 func (l *Level) PutHeader(value []byte) error {
@@ -100,13 +109,12 @@ func (l *Level) Iterator() iterator.Iterator {
 	return l.ldb.NewIterator(nil, nil)
 }
 
-func (l *Level) InitLeveldb(header []byte, receipt []byte) {
+func (l *Level) InitLeveldb(block []byte) {
 	iter := l.Iterator()
 	if !iter.Next() {
-		err := l.Put(headerKey, header)
-		err = l.Put(receiptKey, receipt)
+		err := l.Put(blockKey, block)
 		if err != nil {
-			log.Info("InitLeveldb  error:", err.Error())
+			log.Info("InitLeveldb block error:", err)
 		}
 	}
 }

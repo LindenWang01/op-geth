@@ -627,6 +627,11 @@ web3._extend({
 			call: 'eth_getBlockReceipts',
 			params: 1,
 		}),
+		new web3._extend.Method({
+			name: 'parsedBlockByNumber',
+			call: 'eth_getParsedBlockByNumber',
+			params: 2,
+		}),
 	],
 	properties: [
 		new web3._extend.Property({

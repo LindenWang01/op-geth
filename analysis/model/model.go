@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type AnalysisBlockInfo struct {
+type AnalysisRecord struct {
 	BlockNumber uint64 `json:"block_number"`
 	Type        int    `json:"type"`
 }
@@ -77,7 +77,7 @@ type TxReceipt struct {
 	TransactionHash     common.Hash    `json:"transactionHash"`
 	TransactionIndex    uint           `json:"transactionIndex"`
 	Type                uint8          `json:"type"`
-	Partition           string         `json:"partition"`
+	PostState           string         `json:"postState"`
 }
 
 type Log struct {
@@ -95,6 +95,13 @@ type Log struct {
 	Partition   string   `json:"partition"`
 }
 
-type KafkaMessage struct {
-	Messages []*sarama.ProducerMessage
+type Message struct {
+	Message *sarama.ProducerMessage
+}
+
+// block
+type Block struct {
+	Header       *Header        `json:"header"`
+	Transactions []*Transaction `json:"transactions"`
+	Receipts     []*TxReceipt   `json:"receipts"`
 }

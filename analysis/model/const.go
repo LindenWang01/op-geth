@@ -1,6 +1,7 @@
 package model
 
 const (
-	HeaderRecordType  = 1
-	ReceiptRecordType = 2
+	BlockRecordType   = 1
+	HeaderRecordType  = 2
+	ReceiptRecordType = 3
 )

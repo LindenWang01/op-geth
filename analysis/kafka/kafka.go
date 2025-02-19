@@ -13,7 +13,7 @@ type KafkaScheduler struct {
 	KafkaHosts   []string
 	syncProducer sarama.SyncProducer
 	msgProducer  sarama.ProducerMessage
-	KafkaMessage chan *model.KafkaMessage
+	KafkaMessage chan *model.Message
 }
 
 // NewKafkaScheduler init kafka scheduler
@@ -36,7 +36,7 @@ func NewKafkaScheduler(addrs []string) (*KafkaScheduler, error) {
 	}
 	return &KafkaScheduler{
 		syncProducer: syncProducer,
-		KafkaMessage: make(chan *model.KafkaMessage, 10000),
+		KafkaMessage: make(chan *model.Message, 10000),
 	}, nil
 }
 
@@ -65,11 +65,9 @@ func (k *KafkaScheduler) readMsg4Kafka(ctx context.Context) {
 }
 
 // SyncSendToKafka sync send message
-func (k *KafkaScheduler) SyncSendMsg2Kafka(m *model.KafkaMessage) {
-	for _, msg := range m.Messages {
-		_, _, err := k.syncProducer.SendMessage(msg)
-		if err != nil {
-			log.Error("Kafka syncProducer send message error:", err)
-		}
+func (k *KafkaScheduler) SyncSendMsg2Kafka(m *model.Message) {
+	_, _, err := k.syncProducer.SendMessage(m.Message)
+	if err != nil {
+		log.Error("Kafka syncProducer send message error:", err)
 	}
 }

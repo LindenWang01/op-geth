@@ -52,6 +52,7 @@ type Subscription interface {
 type ChainReader interface {
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	ParsedBlockByNumber(ctx context.Context, number *big.Int) ([]byte, error)
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error)

@@ -25,6 +25,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/analysis/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -92,6 +93,20 @@ func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Blo
 // if you don't need all transactions or uncle headers.
 func (ec *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
+}
+
+// ParsedBlockByNumber returns a block from the current canonical chain. If number is nil, the
+// latest known block is returned.
+//
+// Note that loading full blocks requires two requests. Use HeaderByNumber
+// if you don't need all transactions or uncle headers.
+func (ec *Client) ParsedBlockByNumber(ctx context.Context, number *big.Int) (*model.Block, error) {
+	var result *model.Block
+	err := ec.c.CallContext(ctx, &result, "eth_getParsedBlockByNumber", toBlockNumArg(number))
+	if err != nil {
+		return nil, err
+	}
+	return result, err
 }
 
 // BlockNumber returns the most recent block number
